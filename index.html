@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NoteX</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Syne:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon"></div>
+      <span>NoteX</span>
+    </div>
+
+    <nav>
+      <button class="nav-item active" id="navAll" onclick="window.showAll()">
+        <i class="fa-solid fa-layer-group"></i>
+        All Notes
+      </button>
+      <button class="nav-item" id="navPinned" onclick="window.showPinned()">
+        <i class="fa-solid fa-thumbtack"></i>
+        Pinned
+      </button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <button class="tool-btn" onclick="window.exportNotes()" title="Export notes">
+        <i class="fa-solid fa-arrow-up-from-bracket"></i>
+        <span>Export</span>
+      </button>
+      <button class="tool-btn" onclick="window.importNotes()" title="Import notes">
+        <i class="fa-solid fa-arrow-down-to-bracket"></i>
+        <span>Import</span>
+      </button>
+      <button class="tool-btn signout" onclick="window.logout()">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        <span>Sign out</span>
+      </button>
+    </div>
+    <div class="sidebar-credit">
+      Developed by<br>
+      <a href="https://vibecodetimes.com" target="_blank">vibecodetimes.com</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title" id="viewTitle">All Notes</h1>
+        <p class="page-sub" id="noteCount">0 notes</p>
+      </div>
+      <div class="topbar-actions">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="searchBox" type="text" placeholder="Search notes">
+        </div>
+        <button class="btn-primary" onclick="window.addNote()">
+          <i class="fa-solid fa-plus"></i>
+          New Note
+        </button>
+      </div>
+    </header>
+
+    <div class="notes-grid" id="notesGrid"></div>
+
+    <div class="empty-state" id="emptyState" style="display:none">
+      <i class="fa-regular fa-note-sticky"></i>
+      <p>No notes here</p>
+      <span>Create your first note to get started</span>
+    </div>
+  </main>
+
+</div>
+
+<input type="file" id="importFileInput" accept=".json" style="display:none">
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Edit Note</h2>
+      <button class="close-btn" onclick="window.closeModal()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field-group">
+        <label>Title</label>
+        <input type="text" id="noteTitle" placeholder="Note title">
+      </div>
+      <div class="field-group">
+        <label>Content</label>
+        <textarea id="noteContent" placeholder="Write something..."></textarea>
+      </div>
+      <div class="field-group">
+        <label>Reminder</label>
+        <div class="reminder-row">
+          <input type="datetime-local" id="noteReminder">
+          <button class="clear-btn" onclick="window.clearReminder()">Clear</button>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Icon</label>
+        <div class="icon-grid" id="iconSelector"></div>
+      </div>
+      <div class="field-group">
+        <label>Color</label>
+        <div class="color-grid" id="colorSelector"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-danger" onclick="window.deleteNoteFromModal()">
+        <i class="fa-solid fa-trash"></i> Delete
+      </button>
+      <div class="modal-foot-right">
+        <button class="btn-ghost" onclick="window.closeModal()">Cancel</button>
+        <button class="btn-save" onclick="window.saveNoteFromModal()">Save Note</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <h2>Delete Note</h2>
+      <button class="close-btn" onclick="window.closeDeleteModal()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="delete-msg">Are you sure you want to delete <strong id="deleteNoteName"></strong>? This cannot be undone.</p>
+    </div>
+    <div class="modal-foot">
+      <div></div>
+      <div class="modal-foot-right">
+        <button class="btn-ghost" onclick="window.closeDeleteModal()">Cancel</button>
+        <button class="btn-delete-confirm" id="deleteConfirmBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>
