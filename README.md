@@ -20,7 +20,7 @@ NoteX is a desktop notes app where every note is encrypted with AES-256-GCM befo
 - **Pin notes** — keep important notes at the top
 - **Icons & colors** — 32 icons and 8 color themes to organize notes visually
 - **Search** — live search across titles and content
-- **Export / Import** — backup notes to JSON and restore on any device
+- **Export / Import** — backup notes to JSON and restore on any device 👈👈👈 its your Backup (You can store/sync to Google Drive/OneDrive)
 - **Duplicate notes** — clone any note instantly
 - **Fully offline** — no network requests, no telemetry
 
