@@ -96,8 +96,24 @@
         <input type="text" id="noteTitle" placeholder="Note title">
       </div>
       <div class="field-group">
+        <label>Type</label>
+        <div class="note-type-toggle">
+          <button class="type-btn active" id="btnTypeText" onclick="window.setNoteType('text')">Text</button>
+          <button class="type-btn" id="btnTypeList" onclick="window.setNoteType('list')">Checklist</button>
+        </div>
+      </div>
+
+      <div class="field-group" id="fieldContent">
         <label>Content</label>
         <textarea id="noteContent" placeholder="Write something..."></textarea>
+      </div>
+
+      <div class="field-group" id="fieldChecklist" style="display:none">
+        <label>Checklist</label>
+        <div class="checklist-editor visible" id="checklistEditor"></div>
+        <button class="add-check-item" onclick="window.addCheckItem()">
+          <i class="fa-solid fa-plus"></i> Add item
+        </button>
       </div>
       <div class="field-group">
         <label>Reminder</label>

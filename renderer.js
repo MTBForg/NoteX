@@ -59,6 +59,22 @@ window.render = function() {
     const iconHtml = note.icon
       ? `<div class="note-icon-lbl"><i class="fa-solid ${note.icon}"></i></div>` : "";
 
+    // Build body: checklist or plain text
+    let bodyHtml = "";
+    if (note.type === "list" && note.checklist && note.checklist.length) {
+      const visible = note.checklist.slice(0, 6);
+      const more    = note.checklist.length - 6;
+      const items   = visible.map((item, i) => `
+        <div class="check-item ${item.done ? 'done' : ''}">
+          <input type="checkbox" ${item.done ? 'checked' : ''}
+            onclick="event.stopPropagation();window.toggleCheckOnCard('${note.id}',${i},this.checked)">
+          <span>${esc(item.text)}</span>
+        </div>`).join("");
+      bodyHtml = `<div class="note-checklist">${items}${more > 0 ? `<div class="check-more">+${more} more</div>` : ""}</div>`;
+    } else {
+      bodyHtml = `<div class="note-body">${esc(note.content)}</div>`;
+    }
+
     let badge = "";
     if (note.reminder?.date) {
       const d = new Date(note.reminder.date), now = new Date(), diff = d - now;
@@ -74,7 +90,7 @@ window.render = function() {
       <div class="note-pin" onclick="event.stopPropagation();window.togglePin('${note.id}')">${pinHtml}</div>
       ${iconHtml}
       <div class="note-title">${esc(note.title)}</div>
-      <div class="note-body">${esc(note.content)}</div>
+      ${bodyHtml}
       ${badge}
       <div class="note-actions">
         <button onclick="event.stopPropagation();window.openEditModal('${note.id}')"><i class="fa-solid fa-pen"></i></button>
@@ -94,6 +110,7 @@ window.addNote = function() {
     id: window.noteAPI.uuid(), title: "New Note", content: "",
     color: COLORS[Math.floor(Math.random()*COLORS.length)],
     pinned: false, icon: "", reminder: null,
+    type: "text", checklist: [],
   };
   allNotes.push(note);
   notes = [...allNotes];
@@ -109,6 +126,9 @@ window.openEditModal = function(id) {
 
   document.getElementById("noteTitle").value   = note.title;
   document.getElementById("noteContent").value = note.content;
+
+  // Set note type
+  window.setNoteType(note.type || "text", note.checklist || []);
 
   const ri = document.getElementById("noteReminder");
   if (note.reminder?.date) {
@@ -146,7 +166,22 @@ window.saveNoteFromModal = function() {
   if (!note) return;
 
   note.title   = document.getElementById("noteTitle").value || "Untitled";
-  note.content = document.getElementById("noteContent").value;
+  note.type    = document.getElementById("fieldChecklist").style.display === "none" ? "text" : "list";
+
+  if (note.type === "list") {
+    note.checklist = [];
+    document.querySelectorAll(".check-row").forEach(row => {
+      const cb   = row.querySelector('input[type="checkbox"]');
+      const txt  = row.querySelector('input[type="text"]');
+      if (txt && txt.value.trim()) {
+        note.checklist.push({ text: txt.value.trim(), done: cb ? cb.checked : false });
+      }
+    });
+    note.content = note.checklist.map(i => (i.done ? "[x] " : "[ ] ") + i.text).join("\n");
+  } else {
+    note.content   = document.getElementById("noteContent").value;
+    note.checklist = [];
+  }
 
   const rv = document.getElementById("noteReminder").value;
   note.reminder = rv ? { date: new Date(rv).toISOString(), notified: new Date(rv) <= new Date() } : null;
@@ -209,6 +244,83 @@ window.duplicateNote = function(id) {
   const copy = { ...note, id: window.noteAPI.uuid(), title: note.title + " (Copy)", pinned: false };
   allNotes.push(copy); notes = [...allNotes];
   window.save(); window.render();
+};
+
+
+// ─── Note type & checklist ────────────────────────────────────────────────────
+window.setNoteType = function(type, items = []) {
+  const isList = type === "list";
+  document.getElementById("fieldContent").style.display    = isList ? "none" : "block";
+  document.getElementById("fieldChecklist").style.display  = isList ? "block" : "none";
+  document.getElementById("btnTypeText").classList.toggle("active", !isList);
+  document.getElementById("btnTypeList").classList.toggle("active",  isList);
+
+  if (isList) {
+    const editor = document.getElementById("checklistEditor");
+    editor.innerHTML = "";
+    if (items.length) {
+      items.forEach(item => window.addCheckItem(item.text, item.done));
+    } else {
+      window.addCheckItem();
+    }
+  }
+};
+
+window.addCheckItem = function(text = "", done = false) {
+  const editor = document.getElementById("checklistEditor");
+  const row    = document.createElement("div");
+  row.className = "check-row";
+
+  const cb  = document.createElement("input");
+  cb.type   = "checkbox";
+  cb.checked = done;
+  cb.addEventListener("change", () => {
+    inp.classList.toggle("done-text", cb.checked);
+  });
+
+  const inp         = document.createElement("input");
+  inp.type          = "text";
+  inp.value         = text;
+  inp.placeholder   = "List item...";
+  if (done) inp.classList.add("done-text");
+
+  // Press Enter to add next item
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); window.addCheckItem(); }
+    if (e.key === "Backspace" && inp.value === "") {
+      e.preventDefault();
+      const rows = document.querySelectorAll(".check-row");
+      if (rows.length > 1) {
+        row.remove();
+        const prev = document.querySelectorAll(".check-row");
+        if (prev.length) prev[prev.length - 1].querySelector('input[type="text"]').focus();
+      }
+    }
+  });
+
+  const del     = document.createElement("button");
+  del.className = "check-row-del";
+  del.innerHTML = "&times;";
+  del.onclick   = () => {
+    const rows = document.querySelectorAll(".check-row");
+    if (rows.length > 1) row.remove();
+  };
+
+  row.appendChild(cb);
+  row.appendChild(inp);
+  row.appendChild(del);
+  editor.appendChild(row);
+  inp.focus();
+};
+
+// Toggle checkbox directly on card without opening modal
+window.toggleCheckOnCard = function(id, index, checked) {
+  const note = allNotes.find(n => n.id === id);
+  if (!note || !note.checklist) return;
+  note.checklist[index].done = checked;
+  note.content = note.checklist.map(i => (i.done ? "[x] " : "[ ] ") + i.text).join("\n");
+  window.save();
+  window.render();
 };
 
 // ─── Views ────────────────────────────────────────────────────────────────────
