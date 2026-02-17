@@ -124,11 +124,11 @@ window.openEditModal = function(id) {
   if (!note) return;
   editingId = id;
 
+  // Set note type first (rebuilds DOM), then populate fields
+  window.setNoteType(note.type || "text", note.checklist || []);
+
   document.getElementById("noteTitle").value   = note.title;
   document.getElementById("noteContent").value = note.content;
-
-  // Set note type
-  window.setNoteType(note.type || "text", note.checklist || []);
 
   const ri = document.getElementById("noteReminder");
   if (note.reminder?.date) {
@@ -397,36 +397,137 @@ function showNotif(note) {
 }
 
 // ─── Export / Import ──────────────────────────────────────────────────────────
-window.exportNotes = function() {
+window.exportNotes = async function() {
   if (!loggedIn() || !allNotes.length) { alert("No notes to export."); return; }
-  const blob = new Blob([JSON.stringify({ version:"2.0", exportDate: new Date().toISOString(), notes: allNotes }, null, 2)], { type:"application/json" });
-  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `notepro-${new Date().toISOString().slice(0,10)}.json` });
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  alert(`Exported ${allNotes.length} notes.`);
+
+  const payload = JSON.stringify({
+    version: "2.0",
+    exportDate: new Date().toISOString(),
+    notes: allNotes
+  }, null, 2);
+
+  const result = await window.noteAPI.exportNotes(payload);
+  if (result.success) {
+    alert(`Exported ${allNotes.length} notes successfully.`);
+  } else if (result.error) {
+    alert("Export failed: " + result.error);
+  }
 };
 
-window.importNotes = function() {
+window.importNotes = async function() {
   if (!loggedIn()) return;
-  const fi = document.getElementById("importFileInput");
-  fi.click();
-  fi.onchange = e => {
-    const file = e.target.files[0]; if (!file) return;
-    const r = new FileReader();
-    r.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        if (!Array.isArray(data.notes)) throw new Error("Invalid file");
-        const merge = confirm(`Found ${data.notes.length} notes.\nOK = Merge with existing\nCancel = Replace all`);
-        if (merge) { data.notes.forEach(n => { n.id = window.noteAPI.uuid(); allNotes.push(n); }); }
-        else        { allNotes = data.notes; }
-        notes = [...allNotes];
-        window.save(); window.render();
-        alert(`Imported ${data.notes.length} notes.`);
-      } catch(err) { alert("Import failed: " + err.message); }
-      fi.value = "";
-    };
-    r.readAsText(file);
-  };
+
+  const result = await window.noteAPI.importNotes();
+  if (!result.success) return;
+
+  try {
+    const data = JSON.parse(result.content);
+    if (!Array.isArray(data.notes)) throw new Error("Invalid backup file.");
+
+    showImportConfirmModal(data.notes);
+  } catch(e) {
+    alert("Import failed: " + e.message);
+  }
+};
+
+
+// ─── Import confirm modal ─────────────────────────────────────────────────────
+function showImportConfirmModal(importedNotes) {
+  document.getElementById("importModal")?.remove();
+
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="modal-overlay active" id="importModal">
+      <div class="modal modal-sm">
+        <div class="modal-head">
+          <h2>Import Notes</h2>
+          <button class="close-btn" onclick="document.getElementById('importModal').remove()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="modal-body" style="gap:12px">
+          <p style="font-size:13px;color:var(--txt-2);line-height:1.6">
+            Found <strong style="color:var(--txt)">${importedNotes.length} notes</strong> to import.
+            Enter your master password to confirm.
+          </p>
+          <div class="field-group">
+            <label>Master Password</label>
+            <input type="password" id="importPwdInput" placeholder="Confirm your password"
+              style="padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;
+                font-family:inherit;font-size:14px;width:100%;outline:none;background:var(--page-bg)">
+          </div>
+          <div class="field-group">
+            <label>Mode</label>
+            <div style="display:flex;gap:8px">
+              <button class="type-btn active" id="importMergeBtn"
+                onclick="document.getElementById('importMergeBtn').classList.add('active');
+                         document.getElementById('importReplaceBtn').classList.remove('active')">
+                Merge
+              </button>
+              <button class="type-btn" id="importReplaceBtn"
+                onclick="document.getElementById('importReplaceBtn').classList.add('active');
+                         document.getElementById('importMergeBtn').classList.remove('active')">
+                Replace All
+              </button>
+            </div>
+          </div>
+          <div id="importErrMsg" style="display:none;color:var(--danger);font-size:13px;font-weight:600"></div>
+        </div>
+        <div class="modal-foot">
+          <div></div>
+          <div class="modal-foot-right">
+            <button class="btn-ghost" onclick="document.getElementById('importModal').remove()">Cancel</button>
+            <button class="btn-save" onclick="window.confirmImport()">Import</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+
+  // Store notes on window temporarily
+  window._pendingImport = importedNotes;
+
+  setTimeout(() => {
+    const input = document.getElementById("importPwdInput");
+    if (input) {
+      input.focus();
+      input.addEventListener("keypress", e => { if (e.key === "Enter") window.confirmImport(); });
+    }
+  }, 50);
+}
+
+window.confirmImport = function() {
+  const input = document.getElementById("importPwdInput");
+  const err   = document.getElementById("importErrMsg");
+  const pwd   = input ? input.value : "";
+
+  if (!pwd) {
+    err.textContent = "Please enter your password.";
+    err.style.display = "block";
+    return;
+  }
+
+  if (pwd !== password) {
+    err.textContent = "Incorrect password.";
+    err.style.display = "block";
+    input.value = "";
+    input.focus();
+    return;
+  }
+
+  const merge    = document.getElementById("importMergeBtn").classList.contains("active");
+  const imported = window._pendingImport || [];
+
+  if (merge) {
+    imported.forEach(n => { n.id = window.noteAPI.uuid(); allNotes.push(n); });
+  } else {
+    allNotes = imported.map(n => ({ ...n, id: window.noteAPI.uuid() }));
+  }
+
+  notes = [...allNotes];
+  window._pendingImport = null;
+  document.getElementById("importModal").remove();
+  window.save();
+  window.render();
+  alert(`Imported ${imported.length} notes.`);
 };
 
 // ─── Login / Logout ───────────────────────────────────────────────────────────

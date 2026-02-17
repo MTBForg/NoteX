@@ -1,63 +1,88 @@
 {
-  "name": "notex",
-  "version": "1.0.0",
-  "description": "Secure offline encrypted notes",
+  "name": "notepro",
+  "version": "2.0.0",
+  "description": "Secure Encrypted Note-Taking App with Reminders",
   "main": "main.js",
-  "author": "Subyyal Khan",
+  "author": "Your Name",
   "license": "MIT",
-
   "scripts": {
     "start": "electron .",
-    "build:win": "set CSC_IDENTITY_AUTO_DISCOVERY=false && electron-builder --win msi"
+    "dev": "electron .",
+    "build": "electron-builder",
+    "build:win": "set CSC_IDENTITY_AUTO_DISCOVERY=false && electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "dist": "electron-builder --win --mac --linux"
   },
-
+  "dependencies": {
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "electron": "^40.4.1",
+    "electron-builder": "^25.0.0"
+  },
   "build": {
-    "appId": "com.notex.app",
+    "appId": "com.notepro.app",
     "productName": "NoteX",
-
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     },
-
+    "asar": true,
+    "asarUnpack": [
+      "storage.js",
+      "node_modules/uuid/**/*"
+    ],
     "files": [
-      "**/*",
-      "!dist/*",
-      "!node_modules/.bin"
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "storage.js",
+      "crypto.js",
+      "index.html",
+      "style.css",
+      "assets/**/*",
+      "package.json",
+      "node_modules/**/*",
+      "!node_modules/.cache"
     ],
-
-    "extraResources": [
-      {
-        "from": "assets",
-        "to": "assets"
-      }
-    ],
-
     "win": {
       "target": [
         {
-          "target": "msi",
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
           "arch": ["x64"]
         }
       ],
       "icon": "assets/icon.ico"
     },
-
-    "msi": {
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "assets/icon.png",
+      "category": "Office"
+    },
+    "nsis": {
       "oneClick": false,
-      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "NoteX",
-      "runAfterFinish": true
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "NoteX-Portable.exe"
     }
-  },
-
-  "dependencies": {
-    "uuid": "^9.0.0"
-  },
-
-  "devDependencies": {
-    "electron": "^40.4.1",
-    "electron-builder": "^26.7.0"
   }
 }
